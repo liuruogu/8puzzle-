@@ -1,6 +1,3 @@
-import random
-import math
-
 _goal_state = [[1,2,3],
                [4,5,6],
                [7,8,0]]
@@ -69,7 +66,7 @@ class EightPuzzle:
 
         def swap_and_clone(a, b):
             p = self._clone()
-            p.swap(a,b)
+            p.swap(a, b)
             p._depth = self._depth + 1
             p._parent = self
             return p
@@ -82,6 +79,13 @@ class EightPuzzle:
         else:
             path.append(self)
             return self._parent._generate_solution_path(path)
+    def set(self, other):
+        i = 0;
+        for row in range(3):
+            for col in range(3):
+                self.adj_matrix[row][col] = int(other[i])
+                i=i+1
+
 
     def solve(self, h):
         """Performs A* search for goal state.
@@ -133,14 +137,6 @@ class EightPuzzle:
 
         # if finished state not found, return failure
         return [], 0
-
-    def shuffle(self, step_count):
-        for i in range(step_count):
-            row, col = self.find(0)
-            free = self._get_legal_moves()
-            target = random.choice(free)
-            self.swap((row, col), target)
-            row, col = target
 
     def find(self, value):
         """returns the row, col coordinates of the specified value
@@ -203,26 +199,52 @@ def heur(puzzle, item_total_calc, total_calc):
 def heur_default(puzzle):
     return 1
 
+def h_misplaced(puzzle):
+    return 1
+
 def h_manhattan(puzzle):
     return heur(puzzle,
                 lambda r, tr, c, tc: abs(tr - r) + abs(tc - c),
                 lambda t : t)
 
 def main():
+
     p = EightPuzzle()
-    p.shuffle(20)
+
+    print("Welcome to Ruogu Liu's 8-puzzle solver")
+    pz =  input("Type \"1\" to use a default puzzle, or \"2\" to enter your own puzzle ")
+    if  pz == "1":
+# default puzzle set by yourself
+        p.set("103425786")
+
+    elif pz == "2":
+        print("Your choice is ", pz + ", Please input your own puzzle")
+        SetPuzzle = input()
+        p.set(SetPuzzle)
+
+    print("Enter your choice of algorithm")
+    print("1. Uniform Cost Search")
+    print("2. A* with the Misplaced Tile heuristic")
+    print("3. A* with the Manhattan distance heuristic")
+
+    choice = input()
+    if choice == "1":
+         path, count = p.solve(heur_default)
+         print ("Solved with BFS-equivalent in", count, "moves")
+
+    elif choice == "2":
+         path, count = p.solve(h_misplaced)
+
+    elif choice =="3":
+         path, count = p.solve(h_manhattan)
+         print ("Solved with Manhattan distance exploring", count, "states")
+
     print (p)
 
     path, count = p.solve(h_manhattan)
-    path.reverse()
+    # path.reverse()
     for i in path:
         print (i)
-
-    path, count = p.solve(heur_default)
-    print ("Solved with BFS-equivalent in", count, "moves")
-
-    path, count = p.solve(h_manhattan)
-    print ("Solved with Manhattan distance exploring", count, "states")
 
 
 if __name__ == "__main__":
