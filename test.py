@@ -13,11 +13,11 @@ class EightPuzzle:
 
     def __init__(self):
         # heuristic value
-        self._hval = 0
+        self.heurVal = 0
         # search depth of current instance
-        self._depth = 0
+        self.depth = 0
         # parent node in search path
-        self._parent = None
+        self.parent = None
         self.adj_matrix = []
         for i in range(3):
             self.adj_matrix.append(_goal_state[i][:])
@@ -44,7 +44,7 @@ class EightPuzzle:
     def _get_legal_moves(self):
         """Returns list of tuples with which the free space may
         be swapped"""
-        # get row and column of the empty piece
+        # get row and col of the empay space
         row, col = self.find(0)
         free = []
 
@@ -67,38 +67,46 @@ class EightPuzzle:
         def swap_and_clone(a, b):
             p = self._clone()
             p.swap(a, b)
-            p._depth = self._depth + 1
-            p._parent = self
+            p.depth = self.depth + 1
+            p.parent = self
             return p
 
         return map(lambda pair: swap_and_clone(zero, pair), free)
 
     def _generate_solution_path(self, path):
-        if self._parent == None:
+        if self.parent == None:
             return path
         else:
             path.append(self)
-            return self._parent._generate_solution_path(path)
+            return self.parent._generate_solution_path(path)
+
+#check if the 8-puzzle can be solve
+    def _isValid(self):
+        return 1
+
+#set a new puzzle by user
     def set(self, other):
         i = 0;
         for row in range(3):
             for col in range(3):
                 self.adj_matrix[row][col] = int(other[i])
                 i=i+1
-
-
+#h is the heuristic
     def solve(self, h):
-        """Performs A* search for goal state.
-        h(puzzle) - heuristic function, returns an integer
-        """
+#使用优先队列，并且解释原理。如何保持puzzle的状态。如何比较而且如何找最小的
+#if adjacent equals to goal state, then this problem is solved
         def is_solved(puzzle):
             return puzzle.adj_matrix == _goal_state
-
+        #The initial node into the list
         openl = [self]
+        #The visited node List
         closedl = []
         move_count = 0
         while len(openl) > 0:
             x = openl.pop(0)
+            #The node I have explored
+            print("The", move_count+1, "node we explored")
+            print(x)
             move_count += 1
             if (is_solved(x)):
                 if len(closedl) > 0:
@@ -113,34 +121,34 @@ class EightPuzzle:
                 idx_open = index(move, openl)
                 idx_closed = index(move, closedl)
                 hval = h(move)
-                fval = hval + move._depth
+                fval = hval + move.depth
 
                 if idx_closed == -1 and idx_open == -1:
-                    move._hval = hval
+                    move.heurVal = hval
                     openl.append(move)
                 elif idx_open > -1:
                     copy = openl[idx_open]
-                    if fval < copy._hval + copy._depth:
+                    if fval < copy.heurVal + copy.depth:
                         # copy move's values over existing
-                        copy._hval = hval
-                        copy._parent = move._parent
-                        copy._depth = move._depth
+                        copy.heurVal = hval
+                        copy.parent = move.parent
+                        copy.depth = move.depth
                 elif idx_closed > -1:
                     copy = closedl[idx_closed]
-                    if fval < copy._hval + copy._depth:
-                        move._hval = hval
+                    if fval < copy.heurVal + copy.depth:
+                        move.heurVal = hval
                         closedl.remove(copy)
                         openl.append(move)
 
             closedl.append(x)
-            openl = sorted(openl, key=lambda p: p._hval + p._depth)
+            openl = sorted(openl, key=lambda p: p.heurVal + p.depth)
 
         # if finished state not found, return failure
         return [], 0
 
     def find(self, value):
-        """returns the row, col coordinates of the specified value
-           in the graph"""
+# find the value and return the row, col coordinates
+
         if value < 0 or value > 8:
             raise Exception("value out of range")
 
@@ -197,11 +205,11 @@ def heur(puzzle, item_total_calc, total_calc):
 
 
 def heur_default(puzzle):
-    return 1
+    return 0
 
 def h_misplaced(puzzle):
     return 1
-
+#解释曼哈顿公式的原理
 def h_manhattan(puzzle):
     return heur(puzzle,
                 lambda r, tr, c, tc: abs(tr - r) + abs(tc - c),
@@ -228,6 +236,7 @@ def main():
     print("3. A* with the Manhattan distance heuristic")
 
     choice = input()
+
     if choice == "1":
          path, count = p.solve(heur_default)
          print ("Solved with BFS-equivalent in", count, "moves")
@@ -237,15 +246,7 @@ def main():
 
     elif choice =="3":
          path, count = p.solve(h_manhattan)
-         print ("Solved with Manhattan distance exploring", count, "states")
-
-    print (p)
-
-    path, count = p.solve(h_manhattan)
-    # path.reverse()
-    for i in path:
-        print (i)
-
+         print ("Solved with Manhattan distance exploring", count, "nodes")
 
 if __name__ == "__main__":
     main()
