@@ -23,10 +23,11 @@ class EightPuzzle:
             self.adj_matrix.append(_goal_state[i][:])
 
     def __eq__(self, other):
-        if self.__class__ != other.__class__:
-            return False
-        else:
-            return self.adj_matrix == other.adj_matrix
+            if self.__class__ != other.__class__:
+                return False
+            else:
+                return self.adj_matrix == other.adj_matrix
+
 
     def __str__(self):
         res = ''
@@ -106,16 +107,18 @@ class EightPuzzle:
             x = openl.pop(0)
             #The node I have explored
             print("The", move_count+1, "node we explored")
-            print(x)
+            print(x, end="")
             move_count += 1
+
             if (is_solved(x)):
                 if len(closedl) > 0:
+            #Return the soultion path and move count
                     return x._generate_solution_path([]), move_count
                 else:
                     return [x]
 
             succ = x._generate_moves()
-            idx_open = idx_closed = -1
+
             for move in succ:
                 # have we already seen this node?
                 idx_open = index(move, openl)
@@ -139,7 +142,8 @@ class EightPuzzle:
                         move.heurVal = hval
                         closedl.remove(copy)
                         openl.append(move)
-
+            print("g(x)=", move.depth, "h(x)=", move.heurVal)
+            print()
             closedl.append(x)
             openl = sorted(openl, key=lambda p: p.heurVal + p.depth)
 
@@ -157,9 +161,12 @@ class EightPuzzle:
                 if self.adj_matrix[row][col] == value:
                     return row, col
 
-    def peek(self, row, col):
-        """returns the value at the specified row and column"""
+    def adj(self, row, col):
+#return the value of the adjacent puzzle' value
         return self.adj_matrix[row][col]
+
+    def goal(self, row, col):
+        return self.adj_matrix
 
     def poke(self, row, col, value):
         """sets the value at the specified row and column"""
@@ -167,41 +174,9 @@ class EightPuzzle:
 
     def swap(self, pos_a, pos_b):
         """swaps values at the specified coordinates"""
-        temp = self.peek(*pos_a)
-        self.poke(pos_a[0], pos_a[1], self.peek(*pos_b))
+        temp = self.adj(*pos_a)
+        self.poke(pos_a[0], pos_a[1], self.adj(*pos_b))
         self.poke(pos_b[0], pos_b[1], temp)
-
-
-def heur(puzzle, item_total_calc, total_calc):
-    """
-    Heuristic template that provides the current and target position for each number and the
-    total function.
-
-    Parameters:
-    puzzle - the puzzle
-    item_total_calc - takes 4 parameters: current row, target row, current col, target col.
-    Returns int.
-    total_calc - takes 1 parameter, the sum of item_total_calc over all entries, and returns int.
-    This is the value of the heuristic function
-    """
-    t = 0
-    for row in range(3):
-        for col in range(3):
-            val = puzzle.peek(row, col) - 1
-            target_col = val % 3
-            target_row = val / 3
-
-            # account for 0 as blank
-            if target_row < 0:
-                target_row = 2
-
-            t += item_total_calc(row, target_row, col, target_col)
-
-    return total_calc(t)
-
-#some heuristic functions, the best being the standard manhattan distance in this case, as it comes
-#closest to maximizing the estimated distance while still being admissible.
-
 
 
 def heur_default(puzzle):
@@ -209,11 +184,23 @@ def heur_default(puzzle):
 
 def h_misplaced(puzzle):
     return 1
+
+
 #解释曼哈顿公式的原理
 def h_manhattan(puzzle):
-    return heur(puzzle,
-                lambda r, tr, c, tc: abs(tr - r) + abs(tc - c),
-                lambda t : t)
+    t = 0
+    for row in range(3):
+        for col in range(3):
+            r_val = row
+            c_val = col
+            val = puzzle.adj(row, col) - 1
+            target_col = val % 3
+            target_row = val / 3
+            if target_row < 0:
+                target_row = 2
+            t += abs(r_val - target_row)+abs(c_val-target_col)
+    return t
+
 
 def main():
 
