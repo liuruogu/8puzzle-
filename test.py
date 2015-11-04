@@ -1,9 +1,11 @@
-_goal_state = [[1,2,3],
-               [4,5,6],
-               [7,8,0]]
+import random
+
+goal = [[1,2,3],
+        [4,5,6],
+        [7,8,0]]
 
 def index(item, seq):
-    """Helper function that returns -1 for non-found index value of a seq"""
+# return index of the sequence. Return -1 if can not find the index
     if item in seq:
         return seq.index(item)
     else:
@@ -12,21 +14,16 @@ def index(item, seq):
 class EightPuzzle:
 
     def __init__(self):
-        # heuristic value
+# heuristic value
         self.heurVal = 0
-        # search depth of current instance
+# search depth of current instance
         self.depth = 0
-        # parent node in search path
+# parent node in search path
         self.parent = None
         self.adj_matrix = []
+# insert the goal state for as the
         for i in range(3):
-            self.adj_matrix.append(_goal_state[i][:])
-
-    def __eq__(self, other):
-            if self.__class__ != other.__class__:
-                return False
-            else:
-                return self.adj_matrix == other.adj_matrix
+            self.adj_matrix.append(goal[i][:])
 
 
     def __str__(self):
@@ -36,6 +33,12 @@ class EightPuzzle:
             res += '\r\n'
         return res
 
+    def __eq__(self, other):
+         if self.__class__ != other.__class__:
+             return False
+         else:
+             return self.adj_matrix == other.adj_matrix
+
     def _clone(self):
         p = EightPuzzle()
         for i in range(3):
@@ -43,25 +46,24 @@ class EightPuzzle:
         return p
 
     def _get_legal_moves(self):
-        """Returns list of tuples with which the free space may
-        be swapped"""
-        # get row and col of the empay space
+        # get row and col of the empay space 找到0在的位置,看可否移动
         row, col = self.find(0)
         free = []
 
         # find which pieces can move there
         if row > 0:
-            free.append((row - 1, col))
+            free.append((row - 1, col)) #up
         if col > 0:
-            free.append((row, col - 1))
+            free.append((row, col - 1)) #left
         if row < 2:
-            free.append((row + 1, col))
+            free.append((row + 1, col)) #down
         if col < 2:
-            free.append((row, col + 1))
+            free.append((row, col + 1)) #right
 
         return free
 
     def _generate_moves(self):
+        #Get the cooradinate of lebal move
         free = self._get_legal_moves()
         zero = self.find(0)
 
@@ -92,24 +94,24 @@ class EightPuzzle:
             for col in range(3):
                 self.adj_matrix[row][col] = int(other[i])
                 i=i+1
-#h is the heuristic
+
     def solve(self, h):
 #使用优先队列，并且解释原理。如何保持puzzle的状态。如何比较而且如何找最小的
 #if adjacent equals to goal state, then this problem is solved
         def is_solved(puzzle):
-            return puzzle.adj_matrix == _goal_state
+            return puzzle.adj_matrix == goal
         #The initial node into the list
-        openl = [self]
+        frontier = [self]
         #The visited node List
         closedl = []
         move_count = 0
-        while len(openl) > 0:
-            x = openl.pop(0)
+        #遍历优先队列里面的元素
+        while len(frontier) > 0:
+            x = frontier.pop(0)
             #The node I have explored
             print("The", move_count+1, "node we explored")
             print(x, end="")
             move_count += 1
-
             if (is_solved(x)):
                 if len(closedl) > 0:
             #Return the soultion path and move count
@@ -118,19 +120,20 @@ class EightPuzzle:
                     return [x]
 
             succ = x._generate_moves()
-
+            #遍历每一个可行的的x
             for move in succ:
                 # have we already seen this node?
-                idx_open = index(move, openl)
+                idx_open = index(move, frontier)
                 idx_closed = index(move, closedl)
+                #calculate the heuristic of each move
                 hval = h(move)
                 fval = hval + move.depth
 
                 if idx_closed == -1 and idx_open == -1:
                     move.heurVal = hval
-                    openl.append(move)
+                    frontier.append(move)
                 elif idx_open > -1:
-                    copy = openl[idx_open]
+                    copy = frontier[idx_open]
                     if fval < copy.heurVal + copy.depth:
                         # copy move's values over existing
                         copy.heurVal = hval
@@ -141,14 +144,24 @@ class EightPuzzle:
                     if fval < copy.heurVal + copy.depth:
                         move.heurVal = hval
                         closedl.remove(copy)
-                        openl.append(move)
-            print("g(x)=", move.depth, "h(x)=", move.heurVal)
-            print()
-            closedl.append(x)
-            openl = sorted(openl, key=lambda p: p.heurVal + p.depth)
+                        frontier.append(move)
 
+            closedl.append(x)
+
+            #priortize the node list based on the heuristic+depth
+            frontier = sorted(frontier, key=lambda p: p.heurVal + p.depth)
+            print("g(x)=", frontier[0].depth, "h(x)=",frontier[0].heurVal)
+            print()
         # if finished state not found, return failure
         return [], 0
+
+    def shuffle(self, step_count):
+        for i in range(step_count):
+            row, col = self.find(0)
+            free = self._get_legal_moves()
+            target = random.choice(free)
+            self.swap((row, col), target)
+            row, col = target
 
     def find(self, value):
 # find the value and return the row, col coordinates
@@ -162,11 +175,8 @@ class EightPuzzle:
                     return row, col
 
     def adj(self, row, col):
-#return the value of the adjacent puzzle' value
+#Return the value of the specified row and col
         return self.adj_matrix[row][col]
-
-    def goal(self, row, col):
-        return self.adj_matrix
 
     def poke(self, row, col, value):
         """sets the value at the specified row and column"""
@@ -178,15 +188,21 @@ class EightPuzzle:
         self.poke(pos_a[0], pos_a[1], self.adj(*pos_b))
         self.poke(pos_b[0], pos_b[1], temp)
 
-
-def heur_default(puzzle):
+def h_default(puzzle):
     return 0
 
+# Misplaced heuristic
 def h_misplaced(puzzle):
-    return 1
+    m = 0
+    for row in range(3):
+        for col in range(3):
+            val = puzzle.adj(row, col)
+            if(val!= goal[row][col]):
+                m+=1
+    return m
 
 
-#解释曼哈顿公式的原理
+# Manhattan heuristic
 def h_manhattan(puzzle):
     t = 0
     for row in range(3):
@@ -194,13 +210,12 @@ def h_manhattan(puzzle):
             r_val = row
             c_val = col
             val = puzzle.adj(row, col) - 1
-            target_col = val % 3
-            target_row = val / 3
+            target_col = int(val % 3)
+            target_row = int(val / 3)
             if target_row < 0:
                 target_row = 2
             t += abs(r_val - target_row)+abs(c_val-target_col)
     return t
-
 
 def main():
 
@@ -210,7 +225,8 @@ def main():
     pz =  input("Type \"1\" to use a default puzzle, or \"2\" to enter your own puzzle ")
     if  pz == "1":
 # default puzzle set by yourself
-        p.set("103425786")
+#         p.set("103425786")
+        p.shuffle(20)
 
     elif pz == "2":
         print("Your choice is ", pz + ", Please input your own puzzle")
@@ -225,15 +241,16 @@ def main():
     choice = input()
 
     if choice == "1":
-         path, count = p.solve(heur_default)
-         print ("Solved with BFS-equivalent in", count, "moves")
+         path, count = p.solve(h_default)
+         print ("Solved!!!, with uniformed cost search by exploring", count, "nodes")
 
     elif choice == "2":
          path, count = p.solve(h_misplaced)
+         print ("Solved!!! ,with misplaced distance by exploring", count, "nodes")
 
     elif choice =="3":
          path, count = p.solve(h_manhattan)
-         print ("Solved with Manhattan distance exploring", count, "nodes")
+         print ("Solved!!! ,with Manhattan distance by exploring", count, "nodes")
 
 if __name__ == "__main__":
     main()
