@@ -1,187 +1,245 @@
-import sys
-from optparse import OptionParser
+import random
 import math
-from struct import pack
-import heapq
 
-class Solver:
-    def __init__(self, n):
-        self.N = n
-        self.L = n * n
+_goal_state = [[1,2,3],
+               [4,5,6],
+               [7,8,0]]
 
-        self.GOAL = range(1, self.L)
-        
-        # slide rules
-        self.SR = {}
-        for i in range(self.L):
-            s = []
-            if i - self.N >= 0:
-                s.append(i - self.N)
-            if (i % self.N) - 1 >= 0:
-                s.append(i - 1)
-            if (i % self.N) + 1 < self.N:
-                s.append(i + 1)
-            if i + self.N < self.L:
-                s.append(i + self.N)
-            self.SR[i] = s
-
-        # queue
-        self.queue = []
-        self.enqueued = {}
-
-        # verbose
-        #self.verbose = 104999
-        self.verbose = 8963
-
-        # h
-        self.w = 1
-        self.h = self.heuristics
-
-    def is_solvable(self, tiles):
-        x = 0
-        for p in range(len(tiles)):
-            a = tiles[p]
-            if a < 2 :
-                continue
-            for b in tiles[p:]:
-                if b == 0:
-                    continue
-                if a > b:
-                    x = x + 1
-        return (x & 1) == 0
-
-    def neighbors(self, tiles):
-        n = []
-        a = tiles.index(0)
-        for b in self.SR[a]:
-            n.append(self.swap(list(tiles), a, b))
-        return n
-
-    def swap(self, tiles, a, b):
-        tiles[a], tiles[b] = tiles[b], tiles[a]
-        return tiles
-
-    def display(self, tiles):
-        for i in range(self.L):
-            if tiles[i]:
-                print ('%(n)#2d' % {'n': tiles[i]})
-            else:
-                print ('  ')
-            if i % self.N == self.N - 1:
-                print
-
-    def enqueue(self, state):
-        (tiles, parent, h, g) = state
-
-        if self.verbose > 0 and len(self.enqueued) % self.verbose == self.verbose - 1:
-            print (" -->", len(self.enqueued), g)
-
-        f = h * self.w + g;
-        heapq.heappush(self.queue, (f, state))
-
-    def dequeue(self):
-        if len(self.queue) <= 0:
-            return None
-        (f, state) = heapq.heappop(self.queue)
-        return state
-
-    def heuristics(self, tiles):
-        return 0;
-
-    def manhattan(self, tiles):
-        h = 0
-        for i in range(self.L):
-            n = tiles[i]
-            if n == 0:
-                continue
-            h += int(abs(n - 1 - i) / self.N) + (abs(n - 1 - i) % self.N)
-        return h
-
-    def hamming(self, tiles):
-        h = 0
-        for i in range(self.L):
-            n = tiles[i]
-            if n > 0 and n - 1 != i:
-                h += 1
-        return h
-
-    def solve(self, initial):
-        if not self.is_solvable(initial):
-            return None
-
-        state = (initial, None, self.h(initial), 0);
-        if initial == self.GOAL:
-            return state
-
-        self.enqueue(state)
-
-        while True:
-            state = self.dequeue()
-            if (not state):
-                break
-
-            (tiles, parent, h, g) = state
-            neighbors = self.neighbors(tiles)
-            for n_tiles in neighbors:
-                if n_tiles == self.GOAL:
-                    return (n_tiles, state, 0, g + 1)
-
-                packed = pack(self.L*'B', *n_tiles)
-                if (packed in self.enqueued):
-                    continue;
-                self.enqueued[packed] = True
-
-                n_state = (n_tiles, state, self.h(n_tiles), g + 1)
-                self.enqueue(n_state)
-
-def main(options, args):
-    initial = []
-    if args:
-        for n in args:
-            initial.append(int(n))
+def index(item, seq):
+    """Helper function that returns -1 for non-found index value of a seq"""
+    if item in seq:
+        return seq.index(item)
     else:
-        initial = [8,7,6,5,4,3,2,1,0]
+        return -1
 
-    solver = Solver(int(math.sqrt(len(initial))))
+class EightPuzzle:
 
-    solver.verbose = int(options.verbose)
-    solver.w = float(options.weight)
-    if int(options.function) == 1:
-        solver.h = solver.hamming
-    elif int(options.function) == 2:
-        solver.h = solver.manhattan
+    def __init__(self):
+        # heuristic value
+        self._hval = 0
+        # search depth of current instance
+        self._depth = 0
+        # parent node in search path
+        self._parent = None
+        self.adj_matrix = []
+        for i in range(3):
+            self.adj_matrix.append(_goal_state[i][:])
 
-    state = solver.solve(initial)
-    if not state:
-        print ("No solution possible")
-        return 1
+    def __eq__(self, other):
+        if self.__class__ != other.__class__:
+            return False
+        else:
+            return self.adj_matrix == other.adj_matrix
 
-    solution = []
-    while state:
-        (tiles, parent, h, g) = state
-        solution.insert(0, tiles)
-        state = parent
+    def __str__(self):
+        res = ''
+        for row in range(3):
+            res += ' '.join(map(str, self.adj_matrix[row]))
+            res += '\r\n'
+        return res
 
-    n = 0
-    for tiles in solution:
-        print ("#", n)
-        solver.display(tiles)
-        print
-        n += 1
+    def _clone(self):
+        p = EightPuzzle()
+        for i in range(3):
+            p.adj_matrix[i] = self.adj_matrix[i][:]
+        return p
 
-    print ("Number of states enqueued =", len(solver.enqueued))
+    def _get_legal_moves(self):
+        """Returns list of tuples with which the free space may
+        be swapped"""
+        # get row and column of the empty piece
+        row, col = self.find(0)
+        free = []
+        
+        # find which pieces can move there
+        if row > 0:
+            free.append((row - 1, col))
+        if col > 0:
+            free.append((row, col - 1))
+        if row < 2:
+            free.append((row + 1, col))
+        if col < 2:
+            free.append((row, col + 1))
+
+        return free
+
+    def _generate_moves(self):
+        free = self._get_legal_moves()
+        zero = self.find(0)
+
+        def swap_and_clone(a, b):
+            p = self._clone()
+            p.swap(a,b)
+            p._depth = self._depth + 1
+            p._parent = self
+            return p
+
+        return map(lambda pair: swap_and_clone(zero, pair), free)
+
+    def _generate_solution_path(self, path):
+        if self._parent == None:
+            return path
+        else:
+            path.append(self)
+            return self._parent._generate_solution_path(path)
+
+    def solve(self, h):
+        """Performs A* search for goal state.
+        h(puzzle) - heuristic function, returns an integer
+        """
+        def is_solved(puzzle):
+            return puzzle.adj_matrix == _goal_state
+
+        openl = [self]
+        closedl = []
+        move_count = 0
+        while len(openl) > 0:
+            x = openl.pop(0)
+            move_count += 1
+            if (is_solved(x)):
+                if len(closedl) > 0:
+                    return x._generate_solution_path([]), move_count
+                else:
+                    return [x]
+
+            succ = x._generate_moves()
+            idx_open = idx_closed = -1
+            for move in succ:
+                # have we already seen this node?
+                idx_open = index(move, openl)
+                idx_closed = index(move, closedl)
+                hval = h(move)
+                fval = hval + move._depth
+
+                if idx_closed == -1 and idx_open == -1:
+                    move._hval = hval
+                    openl.append(move)
+                elif idx_open > -1:
+                    copy = openl[idx_open]
+                    if fval < copy._hval + copy._depth:
+                        # copy move's values over existing
+                        copy._hval = hval
+                        copy._parent = move._parent
+                        copy._depth = move._depth
+                elif idx_closed > -1:
+                    copy = closedl[idx_closed]
+                    if fval < copy._hval + copy._depth:
+                        move._hval = hval
+                        closedl.remove(copy)
+                        openl.append(move)
+
+            closedl.append(x)
+            openl = sorted(openl, key=lambda p: p._hval + p._depth)
+
+        # if finished state not found, return failure
+        return [], 0
+
+    def shuffle(self, step_count):
+        for i in range(step_count):
+            row, col = self.find(0)
+            free = self._get_legal_moves()
+            target = random.choice(free)
+            self.swap((row, col), target)            
+            row, col = target
+
+    def find(self, value):
+        """returns the row, col coordinates of the specified value
+           in the graph"""
+        if value < 0 or value > 8:
+            raise Exception("value out of range")
+
+        for row in range(3):
+            for col in range(3):
+                if self.adj_matrix[row][col] == value:
+                    return row, col
+    
+    def peek(self, row, col):
+        """returns the value at the specified row and column"""
+        return self.adj_matrix[row][col]
+
+    def poke(self, row, col, value):
+        """sets the value at the specified row and column"""
+        self.adj_matrix[row][col] = value
+
+    def swap(self, pos_a, pos_b):
+        """swaps values at the specified coordinates"""
+        temp = self.peek(*pos_a)
+        self.poke(pos_a[0], pos_a[1], self.peek(*pos_b))
+        self.poke(pos_b[0], pos_b[1], temp)
+
+
+def heur(puzzle, item_total_calc, total_calc):
+    """
+    Heuristic template that provides the current and target position for each number and the 
+    total function.
+    
+    Parameters:
+    puzzle - the puzzle
+    item_total_calc - takes 4 parameters: current row, target row, current col, target col. 
+    Returns int.
+    total_calc - takes 1 parameter, the sum of item_total_calc over all entries, and returns int. 
+    This is the value of the heuristic function
+    """
+    t = 0
+    for row in range(3):
+        for col in range(3):
+            val = puzzle.peek(row, col) - 1
+            target_col = val % 3
+            target_row = val / 3
+
+            # account for 0 as blank
+            if target_row < 0: 
+                target_row = 2
+
+            t += item_total_calc(row, target_row, col, target_col)
+
+    return total_calc(t)
+
+#some heuristic functions, the best being the standard manhattan distance in this case, as it comes
+#closest to maximizing the estimated distance while still being admissible.
+
+def h_manhattan(puzzle):
+    return heur(puzzle,
+                lambda r, tr, c, tc: abs(tr - r) + abs(tc - c),
+                lambda t : t)
+
+def h_manhattan_lsq(puzzle):
+    return heur(puzzle,
+                lambda r, tr, c, tc: (abs(tr - r) + abs(tc - c))**2,
+                lambda t: math.sqrt(t))
+
+def h_linear(puzzle):
+    return heur(puzzle,
+                lambda r, tr, c, tc: math.sqrt(math.sqrt((tr - r)**2 + (tc - c)**2)),
+                lambda t: t)
+
+def h_linear_lsq(puzzle):
+    return heur(puzzle,
+                lambda r, tr, c, tc: (tr - r)**2 + (tc - c)**2,
+                lambda t: math.sqrt(t))
+
+def h_default(puzzle):
     return 0
 
-if __name__ == '__main__':
-    parser = OptionParser(usage="usage: %prog [options] [tile] [tile] [tiles ...]")
-    parser.add_option("-v", "--verbose", metavar="<level>",
-            default=8963)
-    parser.add_option("-f", "--function", metavar="<fid>",
-            help="heuristics function. 1 for hamming, 2 for manhattan [default: None as breadth first]",
-            default=0)
-    parser.add_option("-w", "--weight", metavar="<n>",
-            help="weighting of the heuristics function [default: 1]",
-            default=1)
-    (options, args) = parser.parse_args()
+def main():
+    p = EightPuzzle()
+    p.shuffle(20)
+    print (p)
 
-    sys.exit(main(options, args))
+    path, count = p.solve(h_manhattan)
+    path.reverse()
+    for i in path: 
+        print (i)
+
+    print ("Solved with Manhattan distance exploring", count, "states")
+    path, count = p.solve(h_manhattan_lsq)
+    print ("Solved with Manhattan least squares exploring", count, "states")
+    path, count = p.solve(h_linear)
+    print ("Solved with linear distance exploring", count, "states")
+    path, count = p.solve(h_linear_lsq)
+    print ("Solved with linear least squares exploring", count, "states")
+    path, count = p.solve(h_default)
+    print ("Solved with BFS-equivalent in", count, "moves")
+
+if __name__ == "__main__":
+    main()

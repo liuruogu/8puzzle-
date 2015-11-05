@@ -11,6 +11,17 @@ def index(item, seq):
     else:
         return -1
 
+def fGoal(goal, value):
+# find the value and return the row, col coordinates
+
+        if value < 0 or value > 8:
+            raise Exception("value out of range")
+
+        for row in range(3):
+            for col in range(3):
+                if goal[row][col] == value:
+                    return row, col
+
 class EightPuzzle:
 
     def __init__(self):
@@ -18,13 +29,11 @@ class EightPuzzle:
         self.heurVal = 0
 # search depth of current instance
         self.depth = 0
-# parent node in search path
-        self.parent = None
+# The specified node
         self.adj_matrix = []
 # insert the goal state for as the
         for i in range(3):
             self.adj_matrix.append(goal[i][:])
-
 
     def __str__(self):
         res = ''
@@ -33,11 +42,6 @@ class EightPuzzle:
             res += '\r\n'
         return res
 
-    def __eq__(self, other):
-         if self.__class__ != other.__class__:
-             return False
-         else:
-             return self.adj_matrix == other.adj_matrix
 
     def _clone(self):
         p = EightPuzzle()
@@ -45,8 +49,14 @@ class EightPuzzle:
             p.adj_matrix[i] = self.adj_matrix[i][:]
         return p
 
+    def __eq__(self, other):
+        if self.__class__ != other.__class__:
+            return False
+        else:
+            return self.adj_matrix == other.adj_matrix
+
     def _get_legal_moves(self):
-        # get row and col of the empay space 找到0在的位置,看可否移动
+        # get row and col of the empay space
         row, col = self.find(0)
         free = []
 
@@ -76,12 +86,6 @@ class EightPuzzle:
 
         return map(lambda pair: swap_and_clone(zero, pair), free)
 
-    def _generate_solution_path(self, path):
-        if self.parent == None:
-            return path
-        else:
-            path.append(self)
-            return self.parent._generate_solution_path(path)
 
 #check if the 8-puzzle can be solve
     def _isValid(self):
@@ -96,31 +100,40 @@ class EightPuzzle:
                 i=i+1
 
     def solve(self, h):
-#使用优先队列，并且解释原理。如何保持puzzle的状态。如何比较而且如何找最小的
+
 #if adjacent equals to goal state, then this problem is solved
         def is_solved(puzzle):
             return puzzle.adj_matrix == goal
-        #The initial node into the list
+        #The initial node into the queue
         frontier = [self]
         #The visited node List
         closedl = []
+        #The nodes I expanded
         move_count = 0
-        #遍历优先队列里面的元素
+        #The queue Count
+        max_queue = 0
+        #The length of queue
+        len_queue = 0
         while len(frontier) > 0:
+
             x = frontier.pop(0)
             #The node I have explored
             print("The", move_count+1, "node we explored")
             print(x, end="")
+            x.heurVal = h(x)
+            print("g(x)=", x.depth, "h(x)=", x.heurVal)
+            print()
             move_count += 1
             if (is_solved(x)):
+                print("The depth of the goal node is", x.depth)
+                print("The maximun number of the node in the queue is", max_queue)
                 if len(closedl) > 0:
             #Return the soultion path and move count
-                    return x._generate_solution_path([]), move_count
+                    return  move_count
                 else:
                     return [x]
 
             succ = x._generate_moves()
-            #遍历每一个可行的的x
             for move in succ:
                 # have we already seen this node?
                 idx_open = index(move, frontier)
@@ -148,11 +161,13 @@ class EightPuzzle:
 
             closedl.append(x)
 
-            #priortize the node list based on the heuristic+depth
+            #priortize the node in priority queue based on the heuristic + depth
             frontier = sorted(frontier, key=lambda p: p.heurVal + p.depth)
-            print("g(x)=", frontier[0].depth, "h(x)=",frontier[0].heurVal)
-            print()
-        # if finished state not found, return failure
+            #Get the maximum number of nodes in the queue at any one time
+            len_queue = len(frontier)
+            if max_queue <= len_queue:
+                max_queue = len_queue
+
         return [], 0
 
     def shuffle(self, step_count):
@@ -165,7 +180,6 @@ class EightPuzzle:
 
     def find(self, value):
 # find the value and return the row, col coordinates
-
         if value < 0 or value > 8:
             raise Exception("value out of range")
 
@@ -188,6 +202,7 @@ class EightPuzzle:
         self.poke(pos_a[0], pos_a[1], self.adj(*pos_b))
         self.poke(pos_b[0], pos_b[1], temp)
 
+#uniform cost search
 def h_default(puzzle):
     return 0
 
@@ -201,7 +216,6 @@ def h_misplaced(puzzle):
                 m+=1
     return m
 
-
 # Manhattan heuristic
 def h_manhattan(puzzle):
     t = 0
@@ -209,13 +223,10 @@ def h_manhattan(puzzle):
         for col in range(3):
             r_val = row
             c_val = col
-            val = puzzle.adj(row, col) - 1
-            target_col = int(val % 3)
-            target_row = int(val / 3)
-            if target_row < 0:
-                target_row = 2
+            val = puzzle.adj(row, col)
+            target_row, target_col = fGoal(goal, val)
             t += abs(r_val - target_row)+abs(c_val-target_col)
-    return t
+    return  t
 
 def main():
 
@@ -224,9 +235,10 @@ def main():
     print("Welcome to Ruogu Liu's 8-puzzle solver")
     pz =  input("Type \"1\" to use a default puzzle, or \"2\" to enter your own puzzle ")
     if  pz == "1":
-# default puzzle set by yourself
-#         p.set("103425786")
-        p.shuffle(20)
+#       default puzzle set by yourself
+#       p.set("123480765")
+#       p.set("123406758")
+        p.shuffle(30)
 
     elif pz == "2":
         print("Your choice is ", pz + ", Please input your own puzzle")
@@ -241,16 +253,17 @@ def main():
     choice = input()
 
     if choice == "1":
-         path, count = p.solve(h_default)
-         print ("Solved!!!, with uniformed cost search by exploring", count, "nodes")
+         count = p.solve(h_default)
+         print ("Solved!!!  with uniformed cost search by exploring", count, "nodes")
+
 
     elif choice == "2":
-         path, count = p.solve(h_misplaced)
-         print ("Solved!!! ,with misplaced distance by exploring", count, "nodes")
+         count = p.solve(h_misplaced)
+         print ("Solved!!! with misplaced distance by exploring", count, "nodes")
 
     elif choice =="3":
-         path, count = p.solve(h_manhattan)
-         print ("Solved!!! ,with Manhattan distance by exploring", count, "nodes")
+         count = p.solve(h_manhattan)
+         print ("Solved!!! with Manhattan distance by exploring", count, "nodes")
 
 if __name__ == "__main__":
     main()
