@@ -4,13 +4,6 @@ goal = [[1,2,3],
         [4,5,6],
         [7,8,0]]
 
-def index(item, seq):
-# return index of the sequence. Return -1 if can not find the index
-    if item in seq:
-        return seq.index(item)
-    else:
-        return -1
-
 def fGoal(goal, value):
 # find the value and return the row, col coordinates
 
@@ -21,6 +14,14 @@ def fGoal(goal, value):
             for col in range(3):
                 if goal[row][col] == value:
                     return row, col
+
+def index(item, seq):
+# return index of the sequence. Return -1 if can not find the index
+    if item in seq:
+        return seq.index(item)
+    else:
+        return -1
+
 
 class EightPuzzle:
 
@@ -193,11 +194,9 @@ class EightPuzzle:
         return self.adj_matrix[row][col]
 
     def poke(self, row, col, value):
-        """sets the value at the specified row and column"""
         self.adj_matrix[row][col] = value
 
     def swap(self, pos_a, pos_b):
-        """swaps values at the specified coordinates"""
         temp = self.adj(*pos_a)
         self.poke(pos_a[0], pos_a[1], self.adj(*pos_b))
         self.poke(pos_b[0], pos_b[1], temp)
@@ -236,9 +235,8 @@ def main():
     pz =  input("Type \"1\" to use a default puzzle, or \"2\" to enter your own puzzle ")
     if  pz == "1":
 #       default puzzle set by yourself
-#       p.set("123480765")
-#       p.set("123406758")
-        p.shuffle(30)
+        p.set("123480765")
+
 
     elif pz == "2":
         print("Your choice is ", pz + ", Please input your own puzzle")
